@@ -1,79 +1,113 @@
 'use client';
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { signUpUser, signInUser, validateCUNYEmail } from '@/lib/authHelpers';
 
 export default function LandingPage() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [isSignUp, setIsSignUp] = useState<boolean>(false);
   const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const router = useRouter();
 
-  const validateCUNYEmail = (email: string): boolean => {
-    const cunyDomains = [
-      'cuny.edu',
-      'qmail.cuny.edu',
-      'mail.cuny.edu',
-      'bbmail.cuny.edu',
-      'gc.cuny.edu',
-      'cc.cuny.edu',
-      'bmcc.cuny.edu',
-      'bcc.cuny.edu',
-      'baruch.cuny.edu',
-      'brooklyn.cuny.edu',
-      'citytech.cuny.edu',
-      'citycollege.cuny.edu',
-      'hunter.cuny.edu',
-      'johnjay.cuny.edu',
-      'lehman.cuny.edu',
-      'medgar.cuny.edu',
-      'qcc.cuny.edu',
-      'qc.cuny.edu',
-      'york.cuny.edu',
-      'law.cuny.edu',
-      'sps.cuny.edu'
-    ];
-    
-    const domain = email.split('@')[1]?.toLowerCase();
-    return cunyDomains.includes(domain || '');
-  };
-
-  const handleLogin = async (e: FormEvent) => {
+  const handleAuth = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setIsLoading(true);
 
-    if (!email.includes('@')) {
-      setError('Please enter a valid email address');
-      setIsLoading(false);
-      return;
-    }
+    try {
+      // Basic validation
+      if (!email.includes('@')) {
+        throw new Error('Please enter a valid email address');
+      }
 
-    if (!validateCUNYEmail(email)) {
-      setError('Please use a valid CUNY email address');
-      setIsLoading(false);
-      return;
-    }
+      if (!validateCUNYEmail(email)) {
+        throw new Error('Please use a valid CUNY email address');
+      }
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Store user info in localStorage
-    localStorage.setItem('user', JSON.stringify({ email }));
-    localStorage.setItem('isLoggedIn', 'true');
-    router.push('/dashboard');
+      if (password.length < 6) {
+        throw new Error('Password must be at least 6 characters');
+      }
+
+      if (isSignUp) {
+        // Sign Up Flow
+        if (password !== confirmPassword) {
+          throw new Error('Passwords do not match');
+        }
+
+        await signUpUser(email, password);
+        
+        setSuccess('Account created successfully! You can now sign in.');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        
+        // Switch to login mode after 2 seconds
+        setTimeout(() => {
+          setIsSignUp(false);
+          setSuccess('');
+        }, 2000);
+      } else {
+        // Login Flow
+        await signInUser(email, password);
+        
+        // TEMPORARILY DISABLED: Email verification check for testing
+        // Go directly to dashboard
+        router.push('/dashboard');
+      }
+    } catch (err: any) {
+      // Handle Firebase errors
+      let errorMessage = err.message;
+      
+      if (err.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already registered. Please login instead.';
+      } else if (err.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email. Please sign up first.';
+      } else if (err.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password. Please try again.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address format.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak. Use at least 6 characters.';
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const openLoginModal = () => {
+  const openLoginModal = (signUp: boolean = false) => {
     setIsLoginModalOpen(true);
+    setIsSignUp(signUp);
     setEmail('');
+    setPassword('');
+    setConfirmPassword('');
     setError('');
+    setSuccess('');
   };
 
   const closeLoginModal = () => {
     setIsLoginModalOpen(false);
+    setIsSignUp(false);
     setEmail('');
+    setPassword('');
+    setConfirmPassword('');
     setError('');
+    setSuccess('');
+  };
+
+  const toggleAuthMode = () => {
+    setIsSignUp(!isSignUp);
+    setError('');
+    setSuccess('');
+    setPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -94,7 +128,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center space-x-8">
               <button 
-                onClick={openLoginModal}
+                onClick={() => openLoginModal()}
                 className="bg-linear-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 Student Login
@@ -127,7 +161,7 @@ export default function LandingPage() {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <button 
-                onClick={openLoginModal}
+                onClick={() => openLoginModal()}
                 className="bg-linear-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
               >
                 Get Started - It's Free
@@ -245,8 +279,12 @@ export default function LandingPage() {
                   <span className="text-white font-bold text-lg">CC</span>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Welcome Back</h3>
-                  <p className="text-sm text-gray-500">Sign in to ClassConnect</p>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {isSignUp ? 'Create Account' : 'Welcome Back'}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {isSignUp ? 'Sign up for ClassConnect' : 'Sign in to ClassConnect'}
+                  </p>
                 </div>
               </div>
               <button
@@ -259,7 +297,8 @@ export default function LandingPage() {
 
             {/* Modal Body */}
             <div className="p-6">
-              <form className="space-y-6" onSubmit={handleLogin}>
+              <form className="space-y-4" onSubmit={handleAuth}>
+                {/* Email Field */}
                 <div>
                   <label htmlFor="modal-email" className="block text-sm font-medium text-gray-700 mb-2">
                     CUNY Email Address
@@ -279,14 +318,73 @@ export default function LandingPage() {
                     }}
                     autoFocus
                   />
-                  {error && (
-                    <p className="mt-2 text-sm text-red-600 flex items-center">
+                </div>
+
+                {/* Password Field */}
+                <div>
+                  <label htmlFor="modal-password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <input
+                    id="modal-password"
+                    name="password"
+                    type="password"
+                    autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    placeholder={isSignUp ? 'Create a password (min. 6 characters)' : 'Enter your password'}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError('');
+                    }}
+                  />
+                </div>
+
+                {/* Confirm Password Field (Sign Up Only) */}
+                {isSignUp && (
+                  <div>
+                    <label htmlFor="modal-confirm-password" className="block text-sm font-medium text-gray-700 mb-2">
+                      Confirm Password
+                    </label>
+                    <input
+                      id="modal-confirm-password"
+                      name="confirmPassword"
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        setError('');
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600 flex items-center">
                       <span className="mr-2">⚠️</span>
                       {error}
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
 
+                {/* Success Message */}
+                {success && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-600 flex items-center">
+                      <span className="mr-2">✅</span>
+                      {success}
+                    </p>
+                  </div>
+                )}
+
+                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -295,17 +393,30 @@ export default function LandingPage() {
                   {isLoading ? (
                     <div className="flex items-center justify-center">
                       <div className="w-5 h-5 border-t-2 border-white border-solid rounded-full animate-spin mr-2"></div>
-                      Signing in...
+                      {isSignUp ? 'Creating account...' : 'Signing in...'}
                     </div>
                   ) : (
-                    'Sign in to ClassConnect'
+                    isSignUp ? 'Create Account' : 'Sign In'
                   )}
                 </button>
               </form>
 
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              {/* Toggle Sign Up / Login */}
+              <div className="mt-6 text-center">
+                <button
+                  onClick={toggleAuthMode}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  {isSignUp 
+                    ? 'Already have an account? Sign in' 
+                    : "Don't have an account? Sign up"}
+                </button>
+              </div>
+
+              {/* Info Box */}
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-800 text-center">
-                  <strong>Demo:</strong> Use any email ending with @cuny.edu
+                  <strong>CUNY Students Only:</strong> Use your @cuny.edu email address
                 </p>
               </div>
             </div>

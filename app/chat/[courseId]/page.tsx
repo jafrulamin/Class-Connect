@@ -2,30 +2,20 @@
 import { useEffect, useState, useRef, FormEvent } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getCourseById, getChatMessages, addMessage } from '../../../lib/data';
-import { Course, Message, User } from '../../../types';
+import ProtectedRoute from '../../../components/ProtectedRoute';
+import { useAuth } from '@/lib/AuthContext';
+import { Course, Message } from '../../../types';
 
-// Remove the ChatParams interface and use Params directly
-
-export default function Chat() {
+function ChatContent() {
   const [course, setCourse] = useState<Course | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
-  const [user, setUser] = useState<User | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const params = useParams();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
-    
-    if (!userData || isLoggedIn !== 'true') {
-      router.push('/');
-      return;
-    }
-
-    setUser(JSON.parse(userData));
-    
     // Safely access courseId from params
     const courseId = params.courseId as string;
     if (!courseId) {
@@ -53,9 +43,8 @@ export default function Chat() {
 
   const handleSendMessage = (e: FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !user) return;
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const courseId = params.courseId as string;
     
     const message: Message = {
@@ -179,5 +168,13 @@ export default function Chat() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Chat() {
+  return (
+    <ProtectedRoute>
+      <ChatContent />
+    </ProtectedRoute>
   );
 }
