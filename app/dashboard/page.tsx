@@ -1,29 +1,20 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { getUserCourses, getAvailableCourses } from '../../lib/data';
 import CourseCard from '../../components/CourseCard';
-import { Course, User } from '../../types';
+import ProtectedRoute from '../../components/ProtectedRoute';
+import { useAuth } from '@/lib/AuthContext';
+import { Course } from '../../types';
 
-export default function Dashboard() {
+function DashboardContent() {
   const [userCourses, setUserCourses] = useState<Course[]>([]);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
-  const [user, setUser] = useState<User | null>(null);
-  const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
-    
-    if (!userData || isLoggedIn !== 'true') {
-      router.push('/');
-      return;
-    }
-
-    setUser(JSON.parse(userData));
     setUserCourses(getUserCourses());
     setAvailableCourses(getAvailableCourses().slice(0, 3));
-  }, [router]);
+  }, []);
 
   const joinCourse = (courseId: string) => {
     const courses = getUserCourses();
@@ -37,14 +28,6 @@ export default function Dashboard() {
     }
   };
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
@@ -54,7 +37,7 @@ export default function Dashboard() {
         </p>
         <div className="mt-2 flex items-center space-x-2 text-sm text-gray-500">
           <span>Logged in as:</span>
-          <span className="font-medium">{user.email}</span>
+          <span className="font-medium">{user?.email}</span>
         </div>
       </div>
       
@@ -156,5 +139,13 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }

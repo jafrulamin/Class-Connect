@@ -1,30 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { getAvailableCourses, getUserCourses } from '../../lib/data';
 import CourseCard from '../../components/CourseCard';
-import { Course, User } from '../../types';
+import ProtectedRoute from '../../components/ProtectedRoute';
+import { useAuth } from '@/lib/AuthContext';
+import { Course } from '../../types';
 
-export default function Courses() {
+function CoursesContent() {
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [userCourses, setUserCourses] = useState<Course[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [user, setUser] = useState<User | null>(null);
-  const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
-    
-    if (!userData || isLoggedIn !== 'true') {
-      router.push('/');
-      return;
-    }
-
-    setUser(JSON.parse(userData));
     setAvailableCourses(getAvailableCourses());
     setUserCourses(getUserCourses());
-  }, [router]);
+  }, []);
 
   const joinCourse = (courseId: string) => {
     const courseToJoin = availableCourses.find(course => course.id === courseId);
@@ -48,14 +39,6 @@ export default function Courses() {
     course.instructor.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
@@ -63,7 +46,7 @@ export default function Courses() {
         <p className="text-gray-600">Join your courses to access class group chats</p>
         <div className="mt-2 flex items-center space-x-2 text-sm text-gray-500">
           <span>Logged in as:</span>
-          <span className="font-medium">{user.email}</span>
+          <span className="font-medium">{user?.email}</span>
         </div>
       </div>
 
@@ -150,5 +133,13 @@ export default function Courses() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Courses() {
+  return (
+    <ProtectedRoute>
+      <CoursesContent />
+    </ProtectedRoute>
   );
 }
