@@ -1,11 +1,11 @@
 /**
- * Firebase Import Script
+ * Firebase Import Script for Hunter College Courses
  * 
- * This script imports course data from cuny_courses.json into Firebase Firestore.
+ * This script imports course data from hunter_courses.json into Firebase Firestore.
  * 
  * Usage:
- *   1. Make sure you have cuny_courses.json in the scripts directory
- *   2. Set up your Firebase credentials (see instructions below)
+ *   1. Make sure you have hunter_courses.json in the scripts directory
+ *   2. Set up your Firebase credentials
  *   3. Run: node scripts/import_to_firebase.js
  */
 
@@ -14,11 +14,6 @@ const fs = require('fs');
 const path = require('path');
 
 // Initialize Firebase Admin SDK
-// Option 1: Using service account key file (recommended for scripts)
-// Download your service account key from Firebase Console:
-// Project Settings > Service Accounts > Generate New Private Key
-// Save it as 'firebase-service-account.json' in the scripts directory
-
 let serviceAccount;
 const serviceAccountPath = path.join(__dirname, 'firebase-service-account.json');
 
@@ -48,7 +43,7 @@ const db = admin.firestore();
 async function importCoursesToFirebase() {
   try {
     // Read the JSON file
-    const jsonPath = path.join(__dirname, 'cuny_courses.json');
+    const jsonPath = path.join(__dirname, 'hunter_courses.json');
     
     if (!fs.existsSync(jsonPath)) {
       console.error(`Error: ${jsonPath} not found!`);
@@ -63,7 +58,7 @@ async function importCoursesToFirebase() {
       process.exit(1);
     }
     
-    console.log(`\n📚 Starting import of ${coursesData.length} courses to Firebase...\n`);
+    console.log(`\n📚 Starting import of ${coursesData.length} Hunter College courses to Firebase...\n`);
     
     const batch = db.batch();
     let batchCount = 0;
@@ -74,7 +69,6 @@ async function importCoursesToFirebase() {
       const course = coursesData[i];
       
       // Generate a unique document ID
-      // Format: college_code-subject-number (e.g., "baruch-CSC-101")
       const docId = `${course.college.toLowerCase().replace(/\s+/g, '-')}-${course.course_code.replace(/\s+/g, '-')}`;
       
       // Create document reference
@@ -85,12 +79,12 @@ async function importCoursesToFirebase() {
         course_code: course.course_code,
         course_name: course.course_name,
         college: course.college,
-        credits: course.credits,
+        instructor: course.instructor || "Not specified",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       };
       
-      // Set the document (will create if doesn't exist, update if it does)
+      // Set the document
       batch.set(courseRef, firestoreCourse, { merge: true });
       batchCount++;
       
@@ -109,9 +103,10 @@ async function importCoursesToFirebase() {
       totalImported += batchCount;
     }
     
-    console.log(`\n✅ Successfully imported ${totalImported} courses to Firebase Firestore!`);
+    console.log(`\n✅ Successfully imported ${totalImported} Hunter College courses to Firebase Firestore!`);
     console.log(`   Collection: courses`);
-    console.log(`   Total documents: ${totalImported}\n`);
+    console.log(`   Total documents: ${totalImported}`);
+    console.log(`   College: Hunter College\n`);
     
   } catch (error) {
     console.error('❌ Error importing courses:', error);
@@ -129,4 +124,3 @@ importCoursesToFirebase()
     console.error('Import failed:', error);
     process.exit(1);
   });
-

@@ -1,10 +1,10 @@
-# CUNY Course Data Scraper & Firebase Import
+# Hunter College Course Data Scraper & Firebase Import
 
-This directory contains scripts to scrape CUNY course data and import it into Firebase Firestore.
+This directory contains scripts to scrape Hunter College course data using Selenium and import it into Firebase Firestore.
 
 ## 📋 Overview
 
-1. **Python Scraper** (`scrape_courses.py`) - Scrapes course data from CUNY Global Search
+1. **Python Selenium Scraper** (`scrape_courses.py`) - Scrapes Hunter College course data using browser automation
 2. **Firebase Import Script** (`import_to_firebase.js`) - Imports the scraped data into Firestore
 
 ## 🚀 Step 1: Environment Setup
@@ -19,11 +19,6 @@ cd scripts
 pip install -r requirements.txt
 ```
 
-Or install individually:
-```bash
-pip install requests beautifulsoup4 lxml
-```
-
 ## 🔍 Step 2: Run the Scraper
 
 ```bash
@@ -32,32 +27,37 @@ python scrape_courses.py
 ```
 
 This will:
-- Scrape course data from CUNY Global Search
-- Save results to `cuny_courses.json`
-- Display progress and summary
+- Launch a Chrome browser window
+- Navigate to CUNY Global Search
+- Select Hunter College and Fall 2025 term
+- Expand all course sections
+- Extract course codes and names using regex patterns
+- Save results to hunter_courses.json
 
 ### Output Format
 
-The scraper generates `cuny_courses.json` with this structure:
+The scraper generates `hunter_courses.json` with this structure:
 
 ```json
 [
   {
     "course_code": "CSC 101",
     "course_name": "Introduction to Computer Science",
-    "college": "Baruch College",
-    "credits": 3
+    "instructor": "Extract Separately",
+    "college": "Hunter College"
   }
 ]
 ```
 
 ### ⚠️ Important Notes
 
-1. **HTML Structure**: The scraper includes template selectors. You may need to inspect the actual CUNY Global Search HTML and adjust the selectors in `scrape_courses.py` based on the real page structure.
+1. **Browser Automation**: The script uses Selenium WebDriver which opens a real Chrome browser window
 
-2. **Rate Limiting**: The script includes a 1-second delay between requests to be respectful to the server.
+2. **No Credits Field**: The current implementation doesn't extract credits information
 
-3. **Error Handling**: The script continues even if some requests fail, so you'll get partial data.
+3. **Hunter College Only**: Currently configured for Hunter College (HTR01)
+
+4. **Manual Verification**: You may need to manually complete CAPTCHA if prompted
 
 ## 🔥 Step 3: Set Up Firebase Import
 
@@ -98,7 +98,7 @@ After importing, verify in Firebase Console:
    - `course_code` (string)
    - `course_name` (string)
    - `college` (string)
-   - `credits` (number)
+   - `instructor` (string)
    - `createdAt` (timestamp)
    - `updatedAt` (timestamp)
 
@@ -125,15 +125,17 @@ service cloud.firestore {
 
 ### Scraper Issues
 
-1. **No courses found**: 
-   - Inspect the CUNY Global Search page HTML
-   - Update the CSS selectors in `scrape_courses.py`
-   - Check if the website structure has changed
+1. **Chrome Driver Not Found**: 
+   - Download Chrome Driver and add to PATH
+   - Or use webdriver-manager to handle it automatically
 
-2. **Connection errors**:
-   - Check your internet connection
-   - Verify the CUNY Global Search URL is accessible
-   - The site might be blocking automated requests
+2. **CAPTCHA Blocking**:
+   - The script may be blocked by CAPTCHA
+   - You might need to manually solve it during the first run
+
+2. **No Courses Found**:
+   - Check if the website structure has changed
+   - Verify the college code (HTR01) is still valid
 
 ### Firebase Import Issues
 
@@ -162,29 +164,9 @@ Once the data is imported:
 
 ```
 scripts/
-├── scrape_courses.py              # Python scraper script
+├── scrape_courses.py              # Selenium scraper script
 ├── requirements.txt               # Python dependencies
 ├── import_to_firebase.js          # Firebase import script
-├── cuny_courses.json              # Generated course data (after running scraper)
-├── firebase-service-account.json  # Firebase credentials (you need to add this)
+├── hunter_courses.json            # Generated course data
 └── SCRAPER_README.md              # This file
 ```
-
-## 🤝 Team Workflow
-
-1. **Data Scraper** (You):
-   - Run `scrape_courses.py`
-   - Verify `cuny_courses.json` is generated correctly
-   - Share the JSON file with the team
-
-2. **Firebase Setup** (Teammate):
-   - Set up Firebase service account
-   - Run `import_to_firebase.js`
-   - Verify data in Firebase Console
-   - Update Firestore security rules
-
-3. **Integration** (Both):
-   - Update app to use Firestore courses
-   - Test course search and selection
-   - Link courses to users
-
