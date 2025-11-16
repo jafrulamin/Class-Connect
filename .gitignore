@@ -46,3 +46,7 @@ next-env.d.ts
 
 # others
 .firebase.txt
+
+# scraper files (sensitive data)
+scripts/firebase-service-account.json
+scripts/cuny_courses.json
